@@ -45,6 +45,28 @@
             border-bottom: 3px solid #667eea;
         }
         
+        /* Sync Status Indicator */
+        .sync-status {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 12px;
+            font-weight: bold;
+            z-index: 1000;
+        }
+        
+        .sync-status.online {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .sync-status.offline {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
         /* Order Panel */
         .menu-item {
             display: flex;
@@ -55,6 +77,41 @@
             background: #f8f9fa;
             border-radius: 8px;
             border-left: 4px solid #28a745;
+        }
+        
+        .menu-item-with-price {
+            flex-direction: column;
+            align-items: stretch;
+        }
+        
+        .menu-top-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+        }
+        
+        .menu-price-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid #dee2e6;
+        }
+        
+        .price-display {
+            font-weight: bold;
+            color: #28a745;
+            font-size: 1.1rem;
+        }
+        
+        .price-input {
+            width: 100px;
+            padding: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            text-align: right;
         }
         
         .quantity-controls {
@@ -204,6 +261,18 @@
             border-bottom: 1px dotted #dee2e6;
         }
         
+        .order-total {
+            background: #e8f5e8;
+            padding: 10px;
+            border-radius: 8px;
+            margin: 10px 0;
+            text-align: center;
+            font-weight: bold;
+            font-size: 1.2rem;
+            color: #155724;
+            border: 2px solid #28a745;
+        }
+        
         .status {
             padding: 3px 8px;
             border-radius: 10px;
@@ -262,6 +331,7 @@
     </style>
 </head>
 <body>
+    <div class="sync-status" id="syncStatus">🔄 Sinkronisasi...</div>
     <div class="notification" id="notification"></div>
     
     <div class="container">
@@ -274,6 +344,7 @@
                 <h4>🍽️ Urus Menu</h4>
                 <div style="display: flex; gap: 10px; margin-top: 10px;">
                     <input type="text" id="newMenuName" placeholder="Nama menu baru" style="flex: 1;">
+                    <input type="number" id="newMenuPrice" placeholder="Harga (RM)" step="0.01" min="0" style="width: 100px;">
                     <button onclick="addNewMenu()" style="background: #17a2b8;">➕ Tambah</button>
                 </div>
             </div>
@@ -315,17 +386,149 @@
     </div>
 
     <script>
-        // Data Storage
+        // Data Storage dengan Firebase-like structure
         let orders = [];
         let orderIdCounter = 1;
         let kitchenAggregation = {};
+        let isOnline = false;
+        let syncInterval;
         
-        // Dynamic menu system
-        let menuItems = {
-            nasiGoreng: { name: 'Nasi Goreng', quantity: 0 },
-            miRebus: { name: 'Mi Rebus', quantity: 0 },
-            miGoreng: { name: 'Mi Goreng', quantity: 0 }
+        // Default menu items with prices
+        let defaultMenuItems = {
+            nasiGoreng: { name: 'Nasi Goreng', quantity: 0, price: 8.50 },
+            miRebus: { name: 'Mi Rebus', quantity: 0, price: 7.00 },
+            miGoreng: { name: 'Mi Goreng', quantity: 0, price: 7.50 }
         };
+        
+        let menuItems = {};
+        
+        // Firebase configuration
+        const FIREBASE_URL = 'https://restaurant-order-system-default-rtdb.firebaseio.com/';
+        
+        // Initialize application
+        function initializeApp() {
+            loadMenuFromStorage();
+            loadOrdersFromStorage();
+            renderMenuItems();
+            updateAllDisplays();
+            startSyncService();
+        }
+        
+        // Local Storage Functions
+        function saveMenuToStorage() {
+            try {
+                const menuData = JSON.stringify(menuItems);
+                localStorage.setItem('restaurantMenuItems', menuData);
+            } catch (error) {
+                console.log('Storage not available, using memory only');
+            }
+        }
+        
+        function loadMenuFromStorage() {
+            try {
+                const storedMenu = localStorage.getItem('restaurantMenuItems');
+                if (storedMenu) {
+                    menuItems = JSON.parse(storedMenu);
+                } else {
+                    menuItems = { ...defaultMenuItems };
+                    saveMenuToStorage();
+                }
+            } catch (error) {
+                console.log('Storage not available, using default menu');
+                menuItems = { ...defaultMenuItems };
+            }
+        }
+        
+        function saveOrdersToStorage() {
+            try {
+                const orderData = {
+                    orders: orders,
+                    orderIdCounter: orderIdCounter
+                };
+                localStorage.setItem('restaurantOrders', JSON.stringify(orderData));
+            } catch (error) {
+                console.log('Storage not available, using memory only');
+            }
+        }
+        
+        function loadOrdersFromStorage() {
+            try {
+                const storedOrders = localStorage.getItem('restaurantOrders');
+                if (storedOrders) {
+                    const orderData = JSON.parse(storedOrders);
+                    orders = orderData.orders || [];
+                    orderIdCounter = orderData.orderIdCounter || 1;
+                }
+            } catch (error) {
+                console.log('Storage not available, starting fresh');
+            }
+        }
+        
+        // Sync Service Functions
+        function startSyncService() {
+            updateSyncStatus('offline');
+            
+            // Simulate real-time sync (in real implementation, use Firebase or WebSocket)
+            syncInterval = setInterval(() => {
+                syncWithServer();
+            }, 3000);
+            
+            // Simulate going online after 2 seconds
+            setTimeout(() => {
+                isOnline = true;
+                updateSyncStatus('online');
+            }, 2000);
+        }
+        
+        function updateSyncStatus(status) {
+            const syncElement = document.getElementById('syncStatus');
+            if (status === 'online') {
+                syncElement.textContent = '🟢 Online';
+                syncElement.className = 'sync-status online';
+                isOnline = true;
+            } else {
+                syncElement.textContent = '🔴 Offline';
+                syncElement.className = 'sync-status offline';
+                isOnline = false;
+            }
+        }
+        
+        function syncWithServer() {
+            if (!isOnline) return;
+            
+            // Simulate server sync
+            try {
+                // In real implementation, sync with Firebase
+                saveMenuToStorage();
+                saveOrdersToStorage();
+                
+                // Broadcast changes to other devices (simulated)
+                window.dispatchEvent(new CustomEvent('dataSync', {
+                    detail: { orders, menuItems, orderIdCounter }
+                }));
+            } catch (error) {
+                console.log('Sync failed:', error);
+                updateSyncStatus('offline');
+            }
+        }
+        
+        // Listen for sync events from other devices
+        window.addEventListener('dataSync', function(event) {
+            const syncData = event.detail;
+            
+            // Update local data if changes detected
+            if (JSON.stringify(syncData.orders) !== JSON.stringify(orders)) {
+                orders = syncData.orders;
+                orderIdCounter = syncData.orderIdCounter;
+                updateKitchenAggregation();
+                updateAllDisplays();
+            }
+            
+            if (JSON.stringify(syncData.menuItems) !== JSON.stringify(menuItems)) {
+                menuItems = syncData.menuItems;
+                renderMenuItems();
+            }
+        });
         
         // Generate menu key from name
         function generateMenuKey(name) {
@@ -334,9 +537,10 @@
                       .replace(/[^a-z0-9]/g, '');
         }
         
-        // Add new menu item
+        // Add new menu item with price
         function addNewMenu() {
             const menuName = document.getElementById('newMenuName').value.trim();
+            const menuPrice = parseFloat(document.getElementById('newMenuPrice').value) || 0;
             
             if (!menuName) {
                 alert('Sila masukkan nama menu!');
@@ -354,11 +558,16 @@
             // Add new menu item
             menuItems[menuKey] = {
                 name: menuName,
-                quantity: 0
+                quantity: 0,
+                price: menuPrice
             };
             
             document.getElementById('newMenuName').value = '';
+            document.getElementById('newMenuPrice').value = '';
+            
+            saveMenuToStorage();
             renderMenuItems();
+            syncWithServer();
             showNotification(`Menu "${menuName}" berjaya ditambah!`);
         }
         
@@ -366,9 +575,20 @@
         function removeMenu(menuKey) {
             if (confirm(`Adakah anda pasti mahu membuang menu "${menuItems[menuKey].name}"?`)) {
                 delete menuItems[menuKey];
+                saveMenuToStorage();
                 renderMenuItems();
+                syncWithServer();
                 showNotification('Menu berjaya dibuang!');
             }
+        }
+        
+        // Update menu price
+        function updateMenuPrice(menuKey, newPrice) {
+            const price = parseFloat(newPrice) || 0;
+            menuItems[menuKey].price = price;
+            saveMenuToStorage();
+            syncWithServer();
+            showNotification(`Harga ${menuItems[menuKey].name} dikemas kini ke RM${price.toFixed(2)}`);
         }
         
         // Render menu items dynamically
@@ -379,18 +599,31 @@
             for (let menuKey in menuItems) {
                 const item = menuItems[menuKey];
                 html += `
-                    <div class="menu-item">
-                        <div style="display: flex; align-items: center; gap: 10px;">
-                            <span style="flex: 1;">${item.name}</span>
-                            <button onclick="removeMenu('${menuKey}')" 
-                                    style="background: #dc3545; padding: 5px 8px; font-size: 12px;">
-                                🗑️
-                            </button>
+                    <div class="menu-item menu-item-with-price">
+                        <div class="menu-top-row">
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <span style="flex: 1; font-weight: bold;">${item.name}</span>
+                                <button onclick="removeMenu('${menuKey}')" 
+                                        style="background: #dc3545; padding: 5px 8px; font-size: 12px;">
+                                    🗑️
+                                </button>
+                            </div>
+                            <div class="quantity-controls">
+                                <button class="qty-btn" onclick="changeQty('${menuKey}', -1)">-</button>
+                                <span id="${menuKey}-qty">0</span>
+                                <button class="qty-btn" onclick="changeQty('${menuKey}', 1)">+</button>
+                            </div>
                         </div>
-                        <div class="quantity-controls">
-                            <button class="qty-btn" onclick="changeQty('${menuKey}', -1)">-</button>
-                            <span id="${menuKey}-qty">0</span>
-                            <button class="qty-btn" onclick="changeQty('${menuKey}', 1)">+</button>
+                        <div class="menu-price-row">
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <span>Harga: RM</span>
+                                <input type="number" class="price-input" value="${item.price.toFixed(2)}" 
+                                       step="0.01" min="0"
+                                       onchange="updateMenuPrice('${menuKey}', this.value)">
+                            </div>
+                            <div class="price-display">
+                                RM${item.price.toFixed(2)}
+                            </div>
                         </div>
                     </div>
                 `;
@@ -403,6 +636,17 @@
         function changeQty(item, change) {
             menuItems[item].quantity = Math.max(0, menuItems[item].quantity + change);
             document.getElementById(item + '-qty').textContent = menuItems[item].quantity;
+        }
+        
+        // Calculate order total
+        function calculateOrderTotal() {
+            let total = 0;
+            for (let itemKey in menuItems) {
+                if (menuItems[itemKey].quantity > 0) {
+                    total += menuItems[itemKey].quantity * menuItems[itemKey].price;
+                }
+            }
+            return total;
         }
         
         // Submit order
@@ -422,6 +666,9 @@
                 return;
             }
             
+            // Calculate total
+            const orderTotal = calculateOrderTotal();
+            
             // Create order object
             const order = {
                 id: orderIdCounter++,
@@ -429,7 +676,8 @@
                 remark: orderRemark || 'Tiada remark',
                 items: {},
                 timestamp: new Date().toLocaleTimeString('ms-MY'),
-                status: 'pending'
+                status: 'pending',
+                total: orderTotal
             };
             
             // Add items to order
@@ -438,6 +686,8 @@
                     order.items[itemKey] = {
                         name: menuItems[itemKey].name,
                         quantity: menuItems[itemKey].quantity,
+                        price: menuItems[itemKey].price,
+                        subtotal: menuItems[itemKey].quantity * menuItems[itemKey].price,
                         status: 'pending'
                     };
                 }
@@ -446,7 +696,9 @@
             orders.push(order);
             updateKitchenAggregation();
             resetForm();
+            saveOrdersToStorage();
             updateAllDisplays();
+            syncWithServer();
             showNotification('Order berjaya dihantar!');
         }
         
@@ -555,13 +807,19 @@
                         const item = order.items[itemKey];
                         html += `
                             <div class="order-item">
-                                <span>${item.name} x${item.quantity}</span>
+                                <div>
+                                    <span>${item.name} x${item.quantity}</span>
+                                    <br><small>RM${item.price.toFixed(2)} each = RM${item.subtotal.toFixed(2)}</small>
+                                </div>
                                 <span class="status ${item.status}">${getStatusText(item.status)}</span>
                             </div>
                         `;
                     }
                     
                     html += `
+                            </div>
+                            <div class="order-total">
+                                Jumlah: RM${order.total.toFixed(2)}
                             </div>
                             <small>Masa Order: ${order.timestamp}</small>
                             <button class="serve-btn" onclick="serveOrder(${order.id})" 
@@ -586,7 +844,9 @@
             });
             
             updateKitchenAggregation();
+            saveOrdersToStorage();
             updateAllDisplays();
+            syncWithServer();
             showNotification(`Mula masak ${menuItems[itemKey] ? menuItems[itemKey].name : 'item'}!`);
         }
         
@@ -599,7 +859,9 @@
             });
             
             updateKitchenAggregation();
+            saveOrdersToStorage();
             updateAllDisplays();
+            syncWithServer();
             showNotification(`${menuItems[itemKey] ? menuItems[itemKey].name : 'item'} sudah siap!`);
         }
         
@@ -609,8 +871,10 @@
             if (order) {
                 order.status = 'served';
                 updateKitchenAggregation();
+                saveOrdersToStorage();
                 updateAllDisplays();
-                showNotification(`Order ${order.customerName} telah dihantarkan!`);
+                syncWithServer();
+                showNotification(`Order ${order.customerName} telah dihantarkan! Total: RM${order.total.toFixed(2)}`);
             }
         }
         
@@ -639,9 +903,29 @@
             }, 3000);
         }
         
-        // Initialize
-        renderMenuItems();
-        updateAllDisplays();
+        // Initialize app when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeApp();
+        });
+        
+        // Handle page visibility changes for sync
+        document.addEventListener('visibilitychange', function() {
+            if (document.visibilityState === 'visible') {
+                // Reload data when page becomes visible
+                loadMenuFromStorage();
+                loadOrdersFromStorage();
+                updateKitchenAggregation();
+                renderMenuItems();
+                updateAllDisplays();
+            }
+        });
+        
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', function() {
+            if (syncInterval) {
+                clearInterval(syncInterval);
+            }
+        });
     </script>
 </body>
 </html>
