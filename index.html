@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem Order Makanan</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 20px;
+            height: calc(100vh - 40px);
+        }
+        
+        .panel {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+            overflow-y: auto;
+        }
+        
+        .panel h2 {
+            color: #333;
+            margin-bottom: 20px;
+            text-align: center;
+            font-size: 1.5rem;
+            padding-bottom: 10px;
+            border-bottom: 3px solid #667eea;
+        }
+        
+        /* Order Panel */
+        .menu-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            margin: 10px 0;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #28a745;
+        }
+        
+        .quantity-controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .qty-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        
+        .qty-btn:hover {
+            background: #5a6fd8;
+        }
+        
+        input[type="text"], input[type="number"] {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            width: 100%;
+            margin: 5px 0;
+        }
+        
+        button {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+        
+        button:hover {
+            background: #218838;
+            transform: translateY(-2px);
+        }
+        
+        .order-form {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        
+        /* Kitchen Panel */
+        .kitchen-item {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .kitchen-item.cooking {
+            background: #d1ecf1;
+            border-left-color: #17a2b8;
+        }
+        
+        .kitchen-item.ready {
+            background: #d4edda;
+            border-left-color: #28a745;
+        }
+        
+        .item-name {
+            font-weight: bold;
+            font-size: 1.1rem;
+        }
+        
+        .item-quantity {
+            background: #667eea;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-weight: bold;
+        }
+        
+        .cook-btn {
+            background: #17a2b8;
+            margin: 0 5px;
+        }
+        
+        .cook-btn:hover {
+            background: #138496;
+        }
+        
+        .ready-btn {
+            background: #28a745;
+        }
+        
+        .ready-btn:hover {
+            background: #218838;
+        }
+        
+        /* Waiter Panel */
+        .order-card {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 10px;
+            padding: 15px;
+            margin: 10px 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .order-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #dee2e6;
+        }
+        
+        .customer-name {
+            font-weight: bold;
+            color: #495057;
+        }
+        
+        .order-remark {
+            background: #e9ecef;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 0.9rem;
+            color: #6c757d;
+        }
+        
+        .order-items {
+            margin: 10px 0;
+        }
+        
+        .order-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px 0;
+            border-bottom: 1px dotted #dee2e6;
+        }
+        
+        .status {
+            padding: 3px 8px;
+            border-radius: 10px;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+        
+        .status.pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        .status.cooking {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+        
+        .status.ready {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .serve-btn {
+            background: #6f42c1;
+            width: 100%;
+            margin-top: 10px;
+        }
+        
+        .serve-btn:hover {
+            background: #5a32a3;
+        }
+        
+        .serve-btn:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+        
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 20px;
+            background: #28a745;
+            color: white;
+            border-radius: 5px;
+            display: none;
+            z-index: 1000;
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto auto auto;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="notification" id="notification"></div>
+    
+    <div class="container">
+        <!-- Panel Order (Waiter) -->
+        <div class="panel">
+            <h2>📋 Buat Order</h2>
+            
+            <!-- Menu Management Section -->
+            <div class="menu-management" style="background: #f0f8ff; padding: 15px; border-radius: 10px; margin-bottom: 20px;">
+                <h4>🍽️ Urus Menu</h4>
+                <div style="display: flex; gap: 10px; margin-top: 10px;">
+                    <input type="text" id="newMenuName" placeholder="Nama menu baru" style="flex: 1;">
+                    <button onclick="addNewMenu()" style="background: #17a2b8;">➕ Tambah</button>
+                </div>
+            </div>
+            
+            <div class="order-form">
+                <input type="text" id="customerName" placeholder="Nama Pelanggan" required>
+                <input type="text" id="orderRemark" placeholder="Remark/Nota (cth: Meja 5, Bungkus)">
+                
+                <h4>Menu:</h4>
+                <div id="menuContainer">
+                    <!-- Menu items akan dipaparkan di sini -->
+                </div>
+                
+                <button onclick="submitOrder()" style="width: 100%; margin-top: 15px;">
+                    🍽️ Hantar Order
+                </button>
+            </div>
+        </div>
+        
+        <!-- Panel Kitchen -->
+        <div class="panel">
+            <h2>👨‍🍳 Kitchen - Senarai Masakan</h2>
+            <div id="kitchenOrders">
+                <p style="text-align: center; color: #6c757d; margin-top: 50px;">
+                    Tiada order untuk masa ini
+                </p>
+            </div>
+        </div>
+        
+        <!-- Panel Waiter - Order Status -->
+        <div class="panel">
+            <h2>🍽️ Status Order - Waiter</h2>
+            <div id="waiterOrders">
+                <p style="text-align: center; color: #6c757d; margin-top: 50px;">
+                    Tiada order untuk masa ini
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Data Storage
+        let orders = [];
+        let orderIdCounter = 1;
+        let kitchenAggregation = {};
+        
+        // Dynamic menu system
+        let menuItems = {
+            nasiGoreng: { name: 'Nasi Goreng', quantity: 0 },
+            miRebus: { name: 'Mi Rebus', quantity: 0 },
+            miGoreng: { name: 'Mi Goreng', quantity: 0 }
+        };
+        
+        // Generate menu key from name
+        function generateMenuKey(name) {
+            return name.toLowerCase()
+                      .replace(/\s+/g, '')
+                      .replace(/[^a-z0-9]/g, '');
+        }
+        
+        // Add new menu item
+        function addNewMenu() {
+            const menuName = document.getElementById('newMenuName').value.trim();
+            
+            if (!menuName) {
+                alert('Sila masukkan nama menu!');
+                return;
+            }
+            
+            const menuKey = generateMenuKey(menuName);
+            
+            // Check if menu already exists
+            if (menuItems[menuKey]) {
+                alert('Menu ini sudah wujud!');
+                return;
+            }
+            
+            // Add new menu item
+            menuItems[menuKey] = {
+                name: menuName,
+                quantity: 0
+            };
+            
+            document.getElementById('newMenuName').value = '';
+            renderMenuItems();
+            showNotification(`Menu "${menuName}" berjaya ditambah!`);
+        }
+        
+        // Remove menu item
+        function removeMenu(menuKey) {
+            if (confirm(`Adakah anda pasti mahu membuang menu "${menuItems[menuKey].name}"?`)) {
+                delete menuItems[menuKey];
+                renderMenuItems();
+                showNotification('Menu berjaya dibuang!');
+            }
+        }
+        
+        // Render menu items dynamically
+        function renderMenuItems() {
+            const container = document.getElementById('menuContainer');
+            let html = '';
+            
+            for (let menuKey in menuItems) {
+                const item = menuItems[menuKey];
+                html += `
+                    <div class="menu-item">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span style="flex: 1;">${item.name}</span>
+                            <button onclick="removeMenu('${menuKey}')" 
+                                    style="background: #dc3545; padding: 5px 8px; font-size: 12px;">
+                                🗑️
+                            </button>
+                        </div>
+                        <div class="quantity-controls">
+                            <button class="qty-btn" onclick="changeQty('${menuKey}', -1)">-</button>
+                            <span id="${menuKey}-qty">0</span>
+                            <button class="qty-btn" onclick="changeQty('${menuKey}', 1)">+</button>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            container.innerHTML = html;
+        }
+        
+        // Change quantity functions
+        function changeQty(item, change) {
+            menuItems[item].quantity = Math.max(0, menuItems[item].quantity + change);
+            document.getElementById(item + '-qty').textContent = menuItems[item].quantity;
+        }
+        
+        // Submit order
+        function submitOrder() {
+            const customerName = document.getElementById('customerName').value.trim();
+            const orderRemark = document.getElementById('orderRemark').value.trim();
+            
+            if (!customerName) {
+                alert('Sila masukkan nama pelanggan!');
+                return;
+            }
+            
+            // Check if any item is ordered
+            const totalItems = Object.values(menuItems).reduce((sum, item) => sum + item.quantity, 0);
+            if (totalItems === 0) {
+                alert('Sila pilih sekurang-kurangnya satu item!');
+                return;
+            }
+            
+            // Create order object
+            const order = {
+                id: orderIdCounter++,
+                customerName: customerName,
+                remark: orderRemark || 'Tiada remark',
+                items: {},
+                timestamp: new Date().toLocaleTimeString('ms-MY'),
+                status: 'pending'
+            };
+            
+            // Add items to order
+            for (let itemKey in menuItems) {
+                if (menuItems[itemKey].quantity > 0) {
+                    order.items[itemKey] = {
+                        name: menuItems[itemKey].name,
+                        quantity: menuItems[itemKey].quantity,
+                        status: 'pending'
+                    };
+                }
+            }
+            
+            orders.push(order);
+            updateKitchenAggregation();
+            resetForm();
+            updateAllDisplays();
+            showNotification('Order berjaya dihantar!');
+        }
+        
+        // Reset form
+        function resetForm() {
+            document.getElementById('customerName').value = '';
+            document.getElementById('orderRemark').value = '';
+            
+            for (let itemKey in menuItems) {
+                menuItems[itemKey].quantity = 0;
+                const qtyElement = document.getElementById(itemKey + '-qty');
+                if (qtyElement) {
+                    qtyElement.textContent = '0';
+                }
+            }
+        }
+        
+        // Update kitchen aggregation
+        function updateKitchenAggregation() {
+            kitchenAggregation = {};
+            
+            orders.forEach(order => {
+                for (let itemKey in order.items) {
+                    const item = order.items[itemKey];
+                    if (item.status === 'pending' || item.status === 'cooking') {
+                        if (!kitchenAggregation[itemKey]) {
+                            kitchenAggregation[itemKey] = {
+                                name: item.name,
+                                totalQuantity: 0,
+                                status: 'pending'
+                            };
+                        }
+                        kitchenAggregation[itemKey].totalQuantity += item.quantity;
+                        
+                        // Set status to cooking if any item is cooking
+                        if (item.status === 'cooking') {
+                            kitchenAggregation[itemKey].status = 'cooking';
+                        }
+                    }
+                }
+            });
+        }
+        
+        // Update kitchen display
+        function updateKitchenDisplay() {
+            const kitchenDiv = document.getElementById('kitchenOrders');
+            
+            if (Object.keys(kitchenAggregation).length === 0) {
+                kitchenDiv.innerHTML = '<p style="text-align: center; color: #6c757d; margin-top: 50px;">Tiada order untuk masa ini</p>';
+                return;
+            }
+            
+            let html = '';
+            for (let itemKey in kitchenAggregation) {
+                const item = kitchenAggregation[itemKey];
+                const statusClass = item.status;
+                
+                html += `
+                    <div class="kitchen-item ${statusClass}">
+                        <div>
+                            <div class="item-name">${item.name}</div>
+                            <small>Status: ${getStatusText(item.status)}</small>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span class="item-quantity">${item.totalQuantity}</span>
+                            ${item.status === 'pending' ? 
+                                `<button class="cook-btn" onclick="startCooking('${itemKey}')">Mula Masak</button>` : 
+                                ''
+                            }
+                            ${item.status === 'cooking' ? 
+                                `<button class="ready-btn" onclick="markReady('${itemKey}')">Siap</button>` : 
+                                ''
+                            }
+                        </div>
+                    </div>
+                `;
+            }
+            
+            kitchenDiv.innerHTML = html;
+        }
+        
+        // Update waiter display
+        function updateWaiterDisplay() {
+            const waiterDiv = document.getElementById('waiterOrders');
+            
+            if (orders.length === 0) {
+                waiterDiv.innerHTML = '<p style="text-align: center; color: #6c757d; margin-top: 50px;">Tiada order untuk masa ini</p>';
+                return;
+            }
+            
+            let html = '';
+            orders.forEach(order => {
+                if (order.status !== 'served') {
+                    const allReady = Object.values(order.items).every(item => item.status === 'ready');
+                    
+                    html += `
+                        <div class="order-card">
+                            <div class="order-header">
+                                <span class="customer-name">${order.customerName}</span>
+                                <span class="order-remark">${order.remark}</span>
+                            </div>
+                            <div class="order-items">
+                    `;
+                    
+                    for (let itemKey in order.items) {
+                        const item = order.items[itemKey];
+                        html += `
+                            <div class="order-item">
+                                <span>${item.name} x${item.quantity}</span>
+                                <span class="status ${item.status}">${getStatusText(item.status)}</span>
+                            </div>
+                        `;
+                    }
+                    
+                    html += `
+                            </div>
+                            <small>Masa Order: ${order.timestamp}</small>
+                            <button class="serve-btn" onclick="serveOrder(${order.id})" 
+                                    ${!allReady ? 'disabled' : ''}>
+                                ${allReady ? '🍽️ Hantar ke Pelanggan' : 'Menunggu Masakan Siap'}
+                            </button>
+                        </div>
+                    `;
+                }
+            });
+            
+            waiterDiv.innerHTML = html || '<p style="text-align: center; color: #6c757d; margin-top: 50px;">Tiada order aktif</p>';
+        }
+        
+        // Kitchen functions
+        function startCooking(itemKey) {
+            // Update all orders with this item to cooking status
+            orders.forEach(order => {
+                if (order.items[itemKey] && order.items[itemKey].status === 'pending') {
+                    order.items[itemKey].status = 'cooking';
+                }
+            });
+            
+            updateKitchenAggregation();
+            updateAllDisplays();
+            showNotification(`Mula masak ${menuItems[itemKey] ? menuItems[itemKey].name : 'item'}!`);
+        }
+        
+        function markReady(itemKey) {
+            // Update all orders with this item to ready status
+            orders.forEach(order => {
+                if (order.items[itemKey] && order.items[itemKey].status === 'cooking') {
+                    order.items[itemKey].status = 'ready';
+                }
+            });
+            
+            updateKitchenAggregation();
+            updateAllDisplays();
+            showNotification(`${menuItems[itemKey] ? menuItems[itemKey].name : 'item'} sudah siap!`);
+        }
+        
+        // Serve order
+        function serveOrder(orderId) {
+            const order = orders.find(o => o.id === orderId);
+            if (order) {
+                order.status = 'served';
+                updateKitchenAggregation();
+                updateAllDisplays();
+                showNotification(`Order ${order.customerName} telah dihantarkan!`);
+            }
+        }
+        
+        // Helper functions
+        function getStatusText(status) {
+            const statusMap = {
+                'pending': 'Menunggu',
+                'cooking': 'Sedang Dimasak',
+                'ready': 'Siap'
+            };
+            return statusMap[status] || status;
+        }
+        
+        function updateAllDisplays() {
+            updateKitchenDisplay();
+            updateWaiterDisplay();
+        }
+        
+        function showNotification(message) {
+            const notification = document.getElementById('notification');
+            notification.textContent = message;
+            notification.style.display = 'block';
+            
+            setTimeout(() => {
+                notification.style.display = 'none';
+            }, 3000);
+        }
+        
+        // Initialize
+        renderMenuItems();
+        updateAllDisplays();
+    </script>
+</body>
+</html>
